@@ -1,75 +1,22 @@
-import type { CeramicApi } from "@ceramicnetwork/common";
-import Ceramic from "@ceramicnetwork/http-client";
-import { Caip10Link } from "@ceramicnetwork/stream-caip10-link";
+import { WebClient } from "@self.id/web";
 import { TileDocument } from "@ceramicnetwork/stream-tile";
-import { DID } from "dids";
-import ThreeIdResolver from "@ceramicnetwork/3id-did-resolver";
-import KeyDidResolver from "key-did-resolver";
-import { createIDX } from "./idx";
-import { getProvider, getAddress } from "./wallet";
-import { ResolverRegistry } from "did-resolver";
+import { TileMetadataArgs } from "@ceramicnetwork/stream-tile";
+
 import { decodeb64, encodeb64, blobToBase64 } from "./lit";
 
+export interface LitDocument {
+  encryptedZip: string;
+  symKey: string;
+  accessControlConditions: any;
+  chain: string;
+  accessControlConditionType: any;
+}
 declare global {
   interface Window {
-    ceramic?: CeramicApi;
+    ceramic?: WebClient;
     [index: string]: any;
   }
 }
-
-/**
- * Authenticate for Lit + Ceramic.
- * Creates a CeramicApi object on the ceramic testnet
- *
- * @returns {Promise<CeramicApi>} ceramicPromise pass in _createCeramic() promise
- */
-export async function _createCeramic(
-  ceramicNodeUrl: string
-): Promise<CeramicApi> {
-  const ceramic = new Ceramic(ceramicNodeUrl);
-  window.ceramic = ceramic;
-  window.TileDocument = TileDocument;
-  window.Caip10Link = Caip10Link;
-
-  return Promise.resolve(ceramic as CeramicApi);
-}
-
-/**
- * Authenticate for Lit + Ceramic.
- * This uses a wallet provider to interact with the user's wallet
- * Once the user has authorized, the address is retrieved and the
- * decentralized identity is created.  An IDX is also created for
- * convenience.
- *
- * @param {Promise<CeramicApi>} ceramicPromise pass in _createCeramic() promise
- * @returns {Promise<Array<any>>} Promise of ceramic IDX ID, ceramic object
- * and user's ETH Address
- */
-export async function _authenticateCeramic(
-  ceramicPromise: Promise<CeramicApi>
-): Promise<Array<any>> {
-  console.log("authenticate Ceramic!");
-
-  const provider = await getProvider();
-  const [ceramic, address] = await Promise.all([ceramicPromise, getAddress()]);
-  const keyDidResolver = KeyDidResolver.getResolver();
-  const threeIdResolver = ThreeIdResolver.getResolver(ceramic);
-  const resolverRegistry: ResolverRegistry = {
-    ...threeIdResolver,
-    ...keyDidResolver,
-  };
-  const did = new DID({
-    provider: provider,
-    resolver: resolverRegistry,
-  });
-
-  await did.authenticate();
-  await ceramic.setDID(did);
-  const idx = createIDX(ceramic);
-  window.did = ceramic.did;
-  return Promise.resolve([idx.id, ceramic, address]);
-}
-
 /**
  * Write to Ceramic.  This function takes in an auth and what one would
  * like written and then sends it to a ceramic node in the proper format
@@ -78,36 +25,32 @@ export async function _authenticateCeramic(
  * @returns {Promise<string>} promise with the ceramic streamID, can be used to look up data
  */
 export async function _writeCeramic(
-  auth: any[],
-  toBeWritten: any[]
-): Promise<String> {
-  if (auth) {
-    const ceramic = auth[1];
-    const toStore = {
+  client: WebClient,
+  toBeWritten: any[],
+  metadata?: TileMetadataArgs,
+): Promise<TileDocument<LitDocument> | null> {
+  if (client) {
+    const toStore: LitDocument = {
       encryptedZip: toBeWritten[0],
       symKey: toBeWritten[1],
       accessControlConditions: toBeWritten[2],
       chain: toBeWritten[3],
       accessControlConditionType: toBeWritten[4],
     };
-    const doc = await TileDocument.create(ceramic, toStore, {
-      // controllers: [concatId],
-      family: "doc family",
-    });
-    return doc.id.toString();
+    const doc = await TileDocument.create(client.ceramic as any, toStore, metadata);
+    return doc;
   } else {
-    console.error("Failed to authenticate in ceramic WRITE");
-    return "error";
+    console.error("Failed to create document");
+    return null;
   }
 }
 
 export async function _updateCeramic(
-  auth: any[],
+  client: WebClient,
   streamId: String,
   newContent: any[]
-): Promise<String> {
-  if (auth) {
-    const ceramic = auth[1];
+): Promise<TileDocument<LitDocument> | null> {
+  if (client) {
     const toStore = {
       encryptedZip: encodeb64(newContent[0]),
       symKey: encodeb64(newContent[1]),
@@ -116,20 +59,12 @@ export async function _updateCeramic(
       accessControlConditionType: newContent[4],
     };
 
-    const doc = await TileDocument.load(ceramic, streamId.valueOf());
-
-    console.log(
-      "$$$kl - loaded previous ceramic data from StreamID: ",
-      streamId.valueOf()
-    );
-    console.log("$$$kl - previous doc: ", doc);
-    console.log("$$$kl - new access control conditions: ", newContent[1]);
+    const doc = await TileDocument.load<LitDocument>(client.ceramic as any, streamId.valueOf());
     await doc.update(toStore);
-    console.log("$$$kl - new doc: ", doc);
-    return "updated access conditions stored in Ceramic";
+    return doc;
   } else {
-    console.error("Failed to authenticate in ceramic WRITE");
-    return "error";
+    console.error("Failed to update document");
+    return null;
   }
 }
 
@@ -141,16 +76,15 @@ export async function _updateCeramic(
  * @returns {Promise<string>} promise with the ceramic streamID's output
  */
 export async function _readCeramic(
-  auth: any[],
-  streamId: String
-): Promise<string> {
-  if (auth) {
-    const ceramic = auth[1];
-    const stream = await ceramic.loadStream(streamId);
+  client: WebClient,
+  streamId: string
+): Promise<any> {
+  if (client) {
+    const stream = await TileDocument.load(client.ceramic as any, streamId);
     return stream.content;
   } else {
     console.error("Failed to authenticate in ceramic READ");
-    return "error";
+    return null;
   }
 }
 

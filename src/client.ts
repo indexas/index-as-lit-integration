@@ -7,8 +7,7 @@ import * as LitJsSdk from "lit-js-sdk";
  * a litNodeClient
  */
 export async function _startLitClient(window: Window) {
-  console.log("Starting Lit Client...");
   const client = new LitJsSdk.LitNodeClient();
-  client.connect();
+  await client.connect();
   window.litNodeClient = client;
 }
