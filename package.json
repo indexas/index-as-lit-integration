@@ -21,6 +21,7 @@
     "@ceramicnetwork/http-client": "^1.0.7",
     "@ceramicstudio/idx": "^0.12.1",
     "@ceramicstudio/idx-tools": "^0.11.0",
+    "@self.id/web": "^0.4.3",
     "dag-jose": "^0.3.0",
     "dids": "^2.1.0",
     "documentation": "^13.2.5",
