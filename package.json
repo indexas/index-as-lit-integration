@@ -1,6 +1,6 @@
 {
   "name": "@index-as/lit-ceramic-sdk",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "An integration of Lit Protocol with Ceramic Network forked from LIT-Protocol/CeramicIntegration repository on github. ",
   "license": "MIT",
   "repository": "indexas/index-as-lit-integration",

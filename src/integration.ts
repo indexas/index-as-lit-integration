@@ -23,7 +23,7 @@ export class Integration {
     private client: WebClient,
     private chain: string
   ) {
-    if (this.client.ceramic.did?.authenticated) {
+    if (this.client.ceramic?.did?.authenticated !== true) {
       throw new Error("Ceramic client should authenticated");
     }
   }
